@@ -59,10 +59,12 @@ export async function POST(request: NextRequest) {
       case 'clear-old':
         // Clear old conversation data but keep recent context
         if (!global.conversationState) {
+          // Make this operation idempotent: nothing to clear is still success
           return NextResponse.json({
-            success: false,
-            error: 'No active conversation to clear'
-          }, { status: 400 });
+            success: true,
+            message: 'No active conversation; nothing to clear',
+            state: null
+          });
         }
         
         // Keep only recent data
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json({
           success: false,
-          error: 'Invalid action. Use "reset" or "update"'
+          error: 'Invalid action. Use "reset", "clear-old", or "update"'
         }, { status: 400 });
     }
   } catch (error) {
