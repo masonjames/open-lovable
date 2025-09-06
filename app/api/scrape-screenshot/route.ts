@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Use Firecrawl API to capture screenshot
-    const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const firecrawlResponse = await fetch('https://api.firecrawl.dev/v2/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.FIRECRAWL_API_KEY}`,
