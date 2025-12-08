@@ -1,21 +1,17 @@
 # syntax=docker/dockerfile:1
 
-# Stage 1: Dependencies
-FROM node:20-alpine AS deps
+# Stage 1: Build
+FROM node:20-alpine AS builder
 WORKDIR /app
+
+# Install libc6-compat for native modules (lightningcss, etc.)
+RUN apk add --no-cache libc6-compat
 
 # Copy package files
 COPY package*.json ./
 
 # Install dependencies
 RUN npm ci
-
-# Stage 2: Build
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source code
 COPY . .
@@ -24,7 +20,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Stage 3: Production
+# Stage 2: Production
 FROM node:20-alpine AS runner
 WORKDIR /app
 
