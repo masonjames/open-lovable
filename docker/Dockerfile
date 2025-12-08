@@ -1,16 +1,15 @@
 # syntax=docker/dockerfile:1
 
-# Stage 1: Build (use debian slim for better native module compatibility)
+# Stage 1: Build (use debian slim for native module compatibility)
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package.json only (not package-lock.json)
+# This forces npm to resolve platform-specific optional deps fresh
+COPY package.json ./
 
-# Install dependencies including optional platform-specific binaries
-# Force install of lightningcss linux binary which is an optional dep
-RUN npm install && \
-    npm install lightningcss-linux-x64-gnu --save-optional || true
+# Install dependencies - let npm resolve all platform deps
+RUN npm install
 
 # Copy source code
 COPY . .
