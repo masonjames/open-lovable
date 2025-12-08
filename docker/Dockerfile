@@ -7,10 +7,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-# Use npm install to allow resolving platform-specific optional deps
-# since package-lock was generated on macOS and lacks linux binaries
-RUN npm install
+# Install dependencies including optional platform-specific binaries
+# Force install of lightningcss linux binary which is an optional dep
+RUN npm install && \
+    npm install lightningcss-linux-x64-gnu --save-optional || true
 
 # Copy source code
 COPY . .
