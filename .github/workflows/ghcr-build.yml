@@ -77,4 +77,4 @@ jobs:
           curl -X POST "https://platform-core.masonjames.com/api/application.redeploy" \
             -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"applicationId": "GskOQd4X0poGbzHCy4KxG"}'
+            -d '{"applicationId": "g4w6IYNuu7Z_5l9wCJ2cb"}'
