@@ -8,7 +8,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+# Use npm install to allow resolving platform-specific optional deps
+# since package-lock was generated on macOS and lacks linux binaries
+RUN npm install
 
 # Copy source code
 COPY . .
