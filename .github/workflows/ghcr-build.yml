@@ -72,10 +72,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Deploy to Dokploy
-        uses: masonjames/dokployaction@main
-        with:
-          dokploy-url: https://platform-core.masonjames.com
-          api-key: ${{ secrets.DOKPLOY_API_KEY }}
-          application-id: GskOQd4X0poGbzHCy4KxG
-          docker-image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      - name: Redeploy via Dokploy API
+        run: |
+          curl -X POST "https://platform-core.masonjames.com/api/application.redeploy" \
+            -H "x-api-key: ${{ secrets.DOKPLOY_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"applicationId": "GskOQd4X0poGbzHCy4KxG"}'
