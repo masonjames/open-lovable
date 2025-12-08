@@ -4,12 +4,11 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Copy package.json only (not package-lock.json)
-# This forces npm to resolve platform-specific optional deps fresh
-COPY package.json ./
+# Copy package files
+COPY package*.json ./
 
-# Install dependencies - let npm resolve all platform deps
-RUN npm install
+# Install dependencies using lockfile (now has cross-platform binaries)
+RUN npm ci
 
 # Copy source code
 COPY . .
