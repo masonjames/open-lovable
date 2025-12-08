@@ -11,7 +11,10 @@ RUN apk add --no-cache libc6-compat
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+# Use npm install instead of npm ci to properly resolve platform-specific
+# optional dependencies (lightningcss-linux-x64-musl) that may not be in
+# the lockfile when it was generated on a different platform (macOS)
+RUN npm install --prefer-offline --no-audit
 
 # Copy source code
 COPY . .
