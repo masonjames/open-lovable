@@ -1,20 +1,14 @@
 # syntax=docker/dockerfile:1
 
-# Stage 1: Build
-FROM node:20-alpine AS builder
+# Stage 1: Build (use debian slim for better native module compatibility)
+FROM node:20-slim AS builder
 WORKDIR /app
-
-# Install libc6-compat for native modules (lightningcss, etc.)
-RUN apk add --no-cache libc6-compat
 
 # Copy package files
 COPY package*.json ./
 
 # Install dependencies
-# Use npm install instead of npm ci to properly resolve platform-specific
-# optional dependencies (lightningcss-linux-x64-musl) that may not be in
-# the lockfile when it was generated on a different platform (macOS)
-RUN npm install --prefer-offline --no-audit
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -24,7 +18,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Stage 2: Production
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -32,8 +26,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
 # Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid nodejs nextjs
 
 # Copy standalone build
 COPY --from=builder /app/public ./public
