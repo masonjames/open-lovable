@@ -1,0 +1,60 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+.next
+out
+dist
+build
+.turbo
+
+# Development
+.env*
+!.env.example
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Testing
+coverage
+test-results
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.docker
+
+# Documentation
+*.md
+!README.md
+
+# Misc
+.DS_Store
+*.pem
+*.tmp
+*.temp
+repomix-output.txt
+bun.lockb
+
+# E2B template builds
+*.tar.gz
+e2b-template-*
+
+# Vercel
+.vercel
+
+# TypeScript build info
+*.tsbuildinfo
