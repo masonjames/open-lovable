@@ -55,8 +55,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Temporarily disable cache to force clean build
-          no-cache: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           platforms: linux/amd64
 
       - name: Output image info
@@ -75,7 +75,7 @@ jobs:
       - name: Deploy to Dokploy
         uses: masonjames/dokployaction@main
         with:
-          dokploy_url: https://platform-core.masonjames.com
-          dokploy_token: ${{ secrets.DOKPLOY_API_KEY }}
-          application_id: GskOQd4X0poGbzHCy4KxG
-          image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          dokploy-url: https://platform-core.masonjames.com
+          api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          application-id: GskOQd4X0poGbzHCy4KxG
+          docker-image: ghcr.io/${{ github.repository }}:${{ github.sha }}
