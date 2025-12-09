@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { SandboxState } from '@/types/sandbox';
 import type { ConversationState } from '@/types/conversation';
+import { requireAuth } from '@/lib/api-auth';
+
 declare global {
   var conversationState: ConversationState | null;
 }
@@ -114,6 +116,12 @@ declare global {
   var sandboxState: SandboxState;
 }
 export async function POST(request: NextRequest) {
+  // Require authentication
+  const authResult = requireAuth(request);
+  if ("response" in authResult) {
+    return authResult.response;
+  }
+
   try {
     const { response, isEdit = false, packages = [] } = await request.json();
     if (!response) {

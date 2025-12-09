@@ -10,6 +10,8 @@ import { executeSearchPlan, formatSearchResultsForAI, selectTargetFile } from '@
 import { FileManifest } from '@/types/file-manifest';
 import type { ConversationState, ConversationMessage, ConversationEdit } from '@/types/conversation';
 import { appConfig } from '@/config/app.config';
+import { requireCredits } from '@/lib/api-auth';
+import { CREDIT_COSTS } from '@/lib/auth';
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
@@ -73,6 +75,13 @@ declare global {
 }
 
 export async function POST(request: NextRequest) {
+  // Require authentication and sufficient credits
+  const authResult = requireCredits(request, CREDIT_COSTS.CODE_GENERATION_BASE);
+  if ("response" in authResult) {
+    return authResult.response;
+  }
+  const user = authResult.user;
+
   try {
     const { prompt, model = 'openai/gpt-oss-20b', context, isEdit = false } = await request.json();
     

@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Sandbox } from '@e2b/code-interpreter';
 import type { SandboxState } from '@/types/sandbox';
 import { appConfig } from '@/config/app.config';
+import { requireCredits } from '@/lib/api-auth';
+import { CREDIT_COSTS } from '@/lib/auth';
 
 // Store active sandbox globally
 declare global {
@@ -11,7 +13,13 @@ declare global {
   var sandboxState: SandboxState;
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Require authentication and sufficient credits for sandbox creation
+  const authResult = requireCredits(request, CREDIT_COSTS.SANDBOX_CREATION);
+  if ("response" in authResult) {
+    return authResult.response;
+  }
+  const user = authResult.user;
   let sandbox: any = null;
 
   try {

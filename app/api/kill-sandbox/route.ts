@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
 
 declare global {
   var activeSandbox: any;
@@ -6,7 +7,12 @@ declare global {
   var existingFiles: Set<string>;
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Require authentication
+  const authResult = requireAuth(request);
+  if ("response" in authResult) {
+    return authResult.response;
+  }
   try {
     console.log('[kill-sandbox] Killing active sandbox...');
     

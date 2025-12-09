@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Sandbox } from '@e2b/code-interpreter';
 import type { SandboxState } from '@/types/sandbox';
 import type { ConversationState } from '@/types/conversation';
+import { requireAuth } from '@/lib/api-auth';
+
 declare global {
   var conversationState: ConversationState | null;
   var activeSandbox: any;
@@ -228,6 +230,12 @@ function parseAIResponse(response: string): ParsedResponse {
   return sections;
 }
 export async function POST(request: NextRequest) {
+  // Require authentication (credits already checked in generate route)
+  const authResult = requireAuth(request);
+  if ("response" in authResult) {
+    return authResult.response;
+  }
+
   try {
     const { response, isEdit = false, packages = [], sandboxId } = await request.json();
     if (!response) {
