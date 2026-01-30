@@ -59,11 +59,25 @@ export async function POST(request: NextRequest) {
       case 'clear-old':
         // Clear old conversation data but keep recent context
         if (!global.conversationState) {
-          // Make this operation idempotent: nothing to clear is still success
+          // Initialize conversation state if it doesn't exist
+          global.conversationState = {
+            conversationId: `conv-${Date.now()}`,
+            startedAt: Date.now(),
+            lastUpdated: Date.now(),
+            context: {
+              messages: [],
+              edits: [],
+              projectEvolution: { majorChanges: [] },
+              userPreferences: {}
+            }
+          };
+          
+          console.log('[conversation-state] Initialized new conversation state for clear-old');
+          
           return NextResponse.json({
             success: true,
-            message: 'No active conversation; nothing to clear',
-            state: null
+            message: 'New conversation state initialized',
+            state: global.conversationState
           });
         }
         
@@ -113,7 +127,7 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json({
           success: false,
-          error: 'Invalid action. Use "reset", "clear-old", or "update"'
+          error: 'Invalid action. Use "reset" or "update"'
         }, { status: 400 });
     }
   } catch (error) {
