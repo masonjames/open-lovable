@@ -1,0 +1,340 @@
+# Open Lovable Upstream Sync PR Creator
+# Automatically creates a PR when upstream has new commits
+# Validates that the build passes after merge
+name: Upstream Sync PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_pr:
+        description: 'Create PR even if already up to date'
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+
+concurrency:
+  group: upstream-sync-open-lovable
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: firecrawl/open-lovable
+  UPSTREAM_BRANCH: main
+
+jobs:
+  create-sync-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/${{ env.UPSTREAM_REPO }}.git
+          git fetch upstream ${{ env.UPSTREAM_BRANCH }}
+
+      - name: Check if sync needed
+        id: check
+        run: |
+          COMMITS_BEHIND=$(git rev-list --count HEAD..upstream/${{ env.UPSTREAM_BRANCH }} 2>/dev/null || echo "0")
+          echo "commits_behind=$COMMITS_BEHIND" >> $GITHUB_OUTPUT
+
+          if [ "$COMMITS_BEHIND" -eq 0 ] && [ "${{ inputs.force_pr }}" != "true" ]; then
+            echo "Already up to date with upstream"
+            echo "needs_sync=false" >> $GITHUB_OUTPUT
+          else
+            echo "Sync needed: $COMMITS_BEHIND commits behind"
+            echo "needs_sync=true" >> $GITHUB_OUTPUT
+          fi
+
+          # Get upstream commit info for PR description
+          LATEST_SHA=$(git rev-parse --short upstream/${{ env.UPSTREAM_BRANCH }})
+          LATEST_DATE=$(git log -1 --format=%cd --date=short upstream/${{ env.UPSTREAM_BRANCH }})
+          echo "latest_sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+          echo "latest_date=$LATEST_DATE" >> $GITHUB_OUTPUT
+
+          # Get commit log
+          COMMIT_LOG=$(git log --oneline HEAD..upstream/${{ env.UPSTREAM_BRANCH }} | head -20)
+          echo "commit_log<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check for existing PR
+        id: existing_pr
+        if: steps.check.outputs.needs_sync == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Look for open PRs with sync branch pattern
+          EXISTING=$(gh pr list --head "sync/" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "Existing sync PR: #$EXISTING"
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "pr_number=$EXISTING" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create sync branch
+        if: steps.check.outputs.needs_sync == 'true' && steps.existing_pr.outputs.exists != 'true'
+        id: branch
+        run: |
+          BRANCH_NAME="sync/upstream-$(date +%Y%m%d)"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          git checkout -b "$BRANCH_NAME"
+
+      - name: Attempt merge
+        if: steps.check.outputs.needs_sync == 'true' && steps.existing_pr.outputs.exists != 'true'
+        id: merge
+        continue-on-error: true
+        run: |
+          if git merge upstream/${{ env.UPSTREAM_BRANCH }} --no-edit; then
+            echo "merge_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "merge_status=conflict" >> $GITHUB_OUTPUT
+            git merge --abort
+          fi
+
+      - name: Validate fork customizations
+        if: steps.merge.outputs.merge_status == 'success'
+        id: validate_files
+        run: |
+          ERRORS=""
+
+          # Check critical fork-specific files exist
+          if [ ! -f ".github/workflows/ghcr-build.yml" ]; then
+            ERRORS="$ERRORS\n- .github/workflows/ghcr-build.yml missing (GHCR build + deploy)"
+          fi
+
+          if [ ! -f "docker/Dockerfile" ]; then
+            ERRORS="$ERRORS\n- docker/Dockerfile missing"
+          fi
+
+          if [ ! -f "config/app.config.ts" ]; then
+            ERRORS="$ERRORS\n- config/app.config.ts missing"
+          fi
+
+          if [ -n "$ERRORS" ]; then
+            echo "validation_status=failed" >> $GITHUB_OUTPUT
+            echo "validation_errors<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$ERRORS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "validation_status=passed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node.js
+        if: steps.merge.outputs.merge_status == 'success' && steps.validate_files.outputs.validation_status == 'passed'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.merge.outputs.merge_status == 'success' && steps.validate_files.outputs.validation_status == 'passed'
+        id: install
+        continue-on-error: true
+        run: npm ci
+
+      - name: Run lint
+        if: steps.install.outcome == 'success'
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Run typecheck
+        if: steps.install.outcome == 'success'
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck
+
+      - name: Run build
+        if: steps.install.outcome == 'success'
+        id: build
+        continue-on-error: true
+        run: npm run build
+
+      - name: Determine CI status
+        if: steps.merge.outputs.merge_status == 'success' && steps.validate_files.outputs.validation_status == 'passed'
+        id: ci
+        run: |
+          CI_ERRORS=""
+          if [ "${{ steps.install.outcome }}" != "success" ]; then
+            CI_ERRORS="$CI_ERRORS\n- npm ci failed"
+          fi
+          if [ "${{ steps.lint.outcome }}" != "success" ]; then
+            CI_ERRORS="$CI_ERRORS\n- Lint failed"
+          fi
+          if [ "${{ steps.typecheck.outcome }}" != "success" ]; then
+            CI_ERRORS="$CI_ERRORS\n- Typecheck failed"
+          fi
+          if [ "${{ steps.build.outcome }}" != "success" ]; then
+            CI_ERRORS="$CI_ERRORS\n- Build failed"
+          fi
+
+          if [ -n "$CI_ERRORS" ]; then
+            echo "ci_status=failed" >> $GITHUB_OUTPUT
+            echo "ci_errors<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$CI_ERRORS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "ci_status=passed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push sync branch
+        if: steps.merge.outputs.merge_status == 'success' && steps.validate_files.outputs.validation_status == 'passed' && steps.ci.outputs.ci_status == 'passed'
+        run: |
+          git push -u origin "${{ steps.branch.outputs.branch_name }}"
+
+      - name: Create Pull Request (clean merge, CI passed)
+        if: steps.merge.outputs.merge_status == 'success' && steps.validate_files.outputs.validation_status == 'passed' && steps.ci.outputs.ci_status == 'passed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "Sync with upstream (${{ steps.check.outputs.latest_date }})" \
+            --body "## Upstream Sync
+
+          Merges **${{ steps.check.outputs.commits_behind }}** commits from [upstream](https://github.com/${{ env.UPSTREAM_REPO }}).
+
+          **Latest upstream commit:** \`${{ steps.check.outputs.latest_sha }}\` (${{ steps.check.outputs.latest_date }})
+
+          ### Commits included:
+          \`\`\`
+          ${{ steps.check.outputs.commit_log }}
+          \`\`\`
+
+          ### Validation
+          - Fork customizations preserved (.github/workflows/ghcr-build.yml, docker/Dockerfile, config/app.config.ts)
+          - npm ci: passed
+          - Lint: passed
+          - Typecheck: passed
+          - Build: passed
+
+          ### After Merging
+          The ghcr-build workflow will automatically:
+          1. Build and push to GHCR
+          2. Trigger Dokploy redeploy
+
+          ---
+          *Automatically created by upstream-sync-pr workflow*"
+
+      - name: Create issue for conflicts
+        if: steps.merge.outputs.merge_status == 'conflict'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING=$(gh issue list --search "Upstream sync" --state open --json number --jq '.[0].number')
+
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "Upstream sync requires manual resolution" \
+              --body "## Merge Conflicts Detected
+
+          The automated sync with upstream encountered merge conflicts.
+
+          **Commits behind:** ${{ steps.check.outputs.commits_behind }}
+          **Latest upstream:** \`${{ steps.check.outputs.latest_sha }}\` (${{ steps.check.outputs.latest_date }})
+
+          ### Manual sync required
+
+          \`\`\`bash
+          git fetch upstream
+          git merge upstream/main
+          # Resolve conflicts manually
+          # Pay special attention to:
+          # - config/app.config.ts
+          # - package.json / package-lock.json
+          # - Any shared component files
+          npm ci
+          npm run lint
+          npm run build
+          git push origin main
+          \`\`\`
+
+          ---
+          *Automatically created by upstream-sync-pr workflow*" \
+              --label "upstream-sync,maintenance"
+          fi
+
+      - name: Create issue for file validation failure
+        if: steps.validate_files.outputs.validation_status == 'failed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Upstream sync validation failed: missing fork files" \
+            --body "## Fork File Validation Failed
+
+          The upstream merge succeeded but critical fork-specific files are missing.
+
+          ### Issues detected:
+          ${{ steps.validate_files.outputs.validation_errors }}
+
+          ### Action required
+          Review the upstream changes to ensure they didn't remove our fork customizations.
+
+          ---
+          *Automatically created by upstream-sync-pr workflow*" \
+            --label "upstream-sync,maintenance"
+
+      - name: Create issue for CI failure
+        if: steps.ci.outputs.ci_status == 'failed'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Push the branch anyway so reviewer can see the state
+          git push -u origin "${{ steps.branch.outputs.branch_name }}" || true
+
+          gh issue create \
+            --title "Upstream sync CI validation failed" \
+            --body "## CI Validation Failed
+
+          The upstream merge succeeded but CI checks failed.
+
+          **Branch:** \`${{ steps.branch.outputs.branch_name }}\`
+          **Commits behind:** ${{ steps.check.outputs.commits_behind }}
+
+          ### CI failures:
+          ${{ steps.ci.outputs.ci_errors }}
+
+          ### Action required
+          1. Check out the sync branch: \`git checkout ${{ steps.branch.outputs.branch_name }}\`
+          2. Fix the CI issues
+          3. Push and create a PR manually
+
+          ---
+          *Automatically created by upstream-sync-pr workflow*" \
+            --label "upstream-sync,maintenance"
+
+      - name: Summary
+        run: |
+          echo "## Upstream Sync PR Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check.outputs.needs_sync }}" != "true" ]; then
+            echo "Already up to date with upstream" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.existing_pr.outputs.exists }}" == "true" ]; then
+            echo "Sync PR already exists: #${{ steps.existing_pr.outputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.merge.outputs.merge_status }}" == "conflict" ]; then
+            echo "Merge conflicts detected - issue created for manual resolution" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.validate_files.outputs.validation_status }}" == "failed" ]; then
+            echo "Validation failed - fork customizations may be missing" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.ci.outputs.ci_status }}" == "failed" ]; then
+            echo "CI validation failed - issue created with details" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Sync PR created successfully" >> $GITHUB_STEP_SUMMARY
+          fi
