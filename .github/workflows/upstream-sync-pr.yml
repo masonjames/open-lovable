@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout fork
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -138,7 +138,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.merge.outputs.merge_status == 'success' && steps.validate_files.outputs.validation_status == 'passed'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -234,7 +234,7 @@ jobs:
 
       - name: Create issue for conflicts
         if: steps.merge.outputs.merge_status == 'conflict'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             // Check for existing open upstream-sync issues
@@ -294,7 +294,7 @@ jobs:
 
       - name: Create issue for file validation failure
         if: steps.validate_files.outputs.validation_status == 'failed'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.issues.create({
@@ -324,7 +324,7 @@ jobs:
 
       - name: Create issue for CI failure
         if: steps.ci.outputs.ci_status == 'failed'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.issues.create({
