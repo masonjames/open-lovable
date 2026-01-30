@@ -30,6 +30,14 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@ai-sdk/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vercel/sandbox"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@anthropic-ai/sdk"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "groq-sdk"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
     commit-message:
