@@ -1,0 +1,15 @@
+# Fork-only files: use "ours" merge strategy so upstream changes
+# never overwrite fork-specific configuration during upstream syncs.
+docker/Dockerfile            merge=ours
+docker/docker-compose.yml    merge=ours
+config/app.config.ts         merge=ours
+.github/workflows/ghcr-build.yml      merge=ours
+.github/workflows/upstream-sync-check.yml  merge=ours
+.github/workflows/upstream-sync-pr.yml     merge=ours
+.github/workflows/trivy-scan.yml           merge=ours
+.github/dependabot.yml       merge=ours
+
+# Always use npm lockfile (upstream may introduce bun.lock / pnpm-lock)
+bun.lock                     linguist-generated -merge
+pnpm-lock.yaml               linguist-generated -merge
+package-lock.json            merge=ours
