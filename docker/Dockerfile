@@ -21,6 +21,9 @@ RUN npm run build
 FROM node:20-slim AS runner
 WORKDIR /app
 
+# Cache-bust arg ensures unique layer digests per build (fixes Swarm registry staleness)
+ARG CACHEBUST=1
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
