@@ -40,12 +40,12 @@ This is a Next.js AI-powered code generation platform that creates and manages s
 - **Context-Aware Editing** - Intelligently selects relevant files based on user intent
 - **Package Detection** - Automatically detects and installs missing npm packages
 - **Real-time Preview** - Live sandbox preview with error detection and recovery
-- **Multi-AI Support** - Supports OpenAI GPT-5, Anthropic Claude, Google Gemini, and Groq models
+- **Multi-AI Support** - Supports OpenAI GPT-5.2 Codex, Anthropic Claude Sonnet 4.5, Google Gemini 3 Flash, and Kimi K2.5 (Groq)
 - **File Structure Analysis** - Parses and maintains component relationships and imports
 
 ### Configuration
 - Environment variables required: `E2B_API_KEY`, `FIRECRAWL_API_KEY`, plus at least one AI provider API key
-- Default AI model: `moonshotai/kimi-k2-instruct` (configurable in `app.config.ts`)
+- Default AI model: `moonshotai/kimi-k2.5` (configurable in `app.config.ts`)
 - E2B sandbox timeout: 15 minutes, Vite port: 5173
 
 ### Development Notes
