@@ -267,7 +267,7 @@ jobs:
 
           ---
           *Automatically created by upstream-sync-pr workflow*" \
-              --label "upstream-sync,maintenance"
+              --label "upstream-sync" --label "maintenance"
           fi
 
       - name: Create issue for file validation failure
@@ -289,7 +289,7 @@ jobs:
 
           ---
           *Automatically created by upstream-sync-pr workflow*" \
-            --label "upstream-sync,maintenance"
+            --label "upstream-sync" --label "maintenance"
 
       - name: Create issue for CI failure
         if: steps.ci.outputs.ci_status == 'failed'
@@ -318,7 +318,7 @@ jobs:
 
           ---
           *Automatically created by upstream-sync-pr workflow*" \
-            --label "upstream-sync,maintenance"
+            --label "upstream-sync" --label "maintenance"
 
       - name: Summary
         run: |
