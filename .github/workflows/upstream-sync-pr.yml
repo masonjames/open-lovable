@@ -237,7 +237,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          EXISTING=$(gh issue list --search "Upstream sync" --state open --json number --jq '.[0].number')
+          # Check for existing open upstream-sync issues (use --label for reliable filtering)
+          EXISTING=$(gh issue list --label "upstream-sync" --state open --json number --jq '.[0].number')
 
           if [ -z "$EXISTING" ]; then
             gh issue create \
@@ -268,6 +269,9 @@ jobs:
           ---
           *Automatically created by upstream-sync-pr workflow*" \
               --label "upstream-sync" --label "maintenance"
+          else
+            # Update existing issue with conflict info
+            gh issue comment "$EXISTING" --body "**Update:** Automated merge attempt failed due to conflicts. ${{ steps.check.outputs.commits_behind }} commits behind upstream."
           fi
 
       - name: Create issue for file validation failure
