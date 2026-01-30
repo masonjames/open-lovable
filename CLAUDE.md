@@ -53,3 +53,44 @@ This is a Next.js AI-powered code generation platform that creates and manages s
 - TypeScript with strict mode enabled
 - ESLint configured for Next.js with custom rules
 - Path aliases configured with `@/` pointing to root directory
+
+## Task Management with BD CLI
+
+This project uses `bd` (beads) for issue tracking with first-class dependency support:
+
+```bash
+# List all tasks
+bd list
+
+# Create new task
+bd create "Task title" -t task -p 1 -d "Description"
+
+# Show ready work (no blockers)
+bd ready
+
+# Update task status
+bd update <task-id> --title "New title"
+
+# Close task
+bd close <task-id> --reason "Completion reason"
+
+# Add dependencies
+bd dep add <task-id> blocks:<other-task-id>
+```
+
+Task types: `task`, `bug`, `feature`, `epic`, `chore`. Priorities: 0 (P0 highest) to 4 (P4 lowest).
+
+### Using bv as an AI sidecar
+
+bv is a fast terminal UI for Beads projects (.beads/beads.jsonl). It renders lists/details and precomputes dependency metrics (PageRank, critical path, cycles, etc.) so you instantly see blockers and execution order. For agents, it’s a graph sidecar: instead of parsing JSONL or risking hallucinated traversal, call the robot flags to get deterministic, dependency-aware outputs.
+
+*IMPORTANT: As an agent, you must ONLY use bv with the robot flags, otherwise you'll get stuck in the interactive TUI that's intended for human usage only!*
+
+- bv --robot-help — shows all AI-facing commands.
+- bv --robot-insights — JSON graph metrics (PageRank, betweenness, HITS, critical path, cycles) with top-N summaries for quick triage.
+- bv --robot-plan — JSON execution plan: parallel tracks, items per track, and unblocks lists showing what each item frees up.
+- bv --robot-priority — JSON priority recommendations with reasoning and confidence.
+- bv --robot-recipes — list recipes (default, actionable, blocked, etc.); apply via bv --recipe <name> to pre-filter/sort before other flags.
+- bv --robot-diff --diff-since <commit|date> — JSON diff of issue changes, new/closed items, and cycles introduced/resolved.
+
+Use these commands instead of hand-rolling graph logic; bv already computes the hard parts so agents can act safely and quickly.
