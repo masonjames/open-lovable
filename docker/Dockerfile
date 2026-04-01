@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build (use debian slim for native module compatibility)
-FROM node:20-slim AS builder
+FROM node:25-slim AS builder
 WORKDIR /app
 
 # Copy package files
@@ -18,7 +18,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Stage 2: Production
-FROM node:20-slim AS runner
+FROM node:25-slim AS runner
 WORKDIR /app
 
 # Cache-bust arg ensures unique layer digests per build (fixes Swarm registry staleness)
